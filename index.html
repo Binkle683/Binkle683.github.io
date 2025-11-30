@@ -1,1 +1,466 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>ESP32 温度监控系统</title>
+    <script src="https://unpkg.com/mqtt/dist/mqtt.min.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/chart.js@3.9.1/dist/chart.min.js"></script>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        body {
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            min-height: 100vh;
+            padding: 20px;
+        }
+
+        .container {
+            max-width: 1200px;
+            margin: 0 auto;
+            background: white;
+            border-radius: 20px;
+            box-shadow: 0 20px 60px rgba(0, 0, 0, 0.3);
+            overflow: hidden;
+        }
+
+        .header {
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            color: white;
+            padding: 30px;
+            text-align: center;
+        }
+
+        .header h1 {
+            font-size: 2.5em;
+            margin-bottom: 10px;
+        }
+
+        .header p {
+            opacity: 0.9;
+            font-size: 1.1em;
+        }
+
+        .status-bar {
+            background: #f8f9fa;
+            padding: 15px 30px;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            border-bottom: 2px solid #e9ecef;
+            flex-wrap: wrap;
+            gap: 10px;
+        }
+
+        .status-item {
+            display: flex;
+            align-items: center;
+            gap: 10px;
+        }
+
+        .status-dot {
+            width: 12px;
+            height: 12px;
+            border-radius: 50%;
+            display: inline-block;
+        }
+
+        .status-dot.connected {
+            background: #28a745;
+            box-shadow: 0 0 10px #28a745;
+        }
+
+        .status-dot.disconnected {
+            background: #dc3545;
+        }
+
+        .status-dot.connecting {
+            background: #ffc107;
+            animation: pulse 1.5s infinite;
+        }
+
+        @keyframes pulse {
+            0%, 100% { opacity: 1; }
+            50% { opacity: 0.5; }
+        }
+
+        .content {
+            padding: 30px;
+        }
+
+        .temperature-display {
+            text-align: center;
+            margin: 40px 0;
+        }
+
+        .temperature-value {
+            font-size: 6em;
+            font-weight: bold;
+            color: #667eea;
+            margin: 20px 0;
+            text-shadow: 2px 2px 4px rgba(0, 0, 0, 0.1);
+        }
+
+        .temperature-unit {
+            font-size: 3em;
+            color: #6c757d;
+            margin-left: 10px;
+        }
+
+        .temperature-info {
+            display: flex;
+            justify-content: center;
+            gap: 40px;
+            margin-top: 30px;
+            flex-wrap: wrap;
+        }
+
+        .info-card {
+            background: #f8f9fa;
+            padding: 20px 30px;
+            border-radius: 10px;
+            min-width: 200px;
+            text-align: center;
+        }
+
+        .info-card h3 {
+            color: #6c757d;
+            font-size: 0.9em;
+            margin-bottom: 10px;
+            text-transform: uppercase;
+        }
+
+        .info-card .value {
+            font-size: 1.5em;
+            font-weight: bold;
+            color: #667eea;
+        }
+
+        .chart-container {
+            margin-top: 40px;
+            padding: 20px;
+            background: #f8f9fa;
+            border-radius: 10px;
+        }
+
+        .chart-title {
+            font-size: 1.5em;
+            margin-bottom: 20px;
+            color: #333;
+            text-align: center;
+        }
+
+        .message-log {
+            margin-top: 30px;
+            background: #f8f9fa;
+            border-radius: 10px;
+            padding: 20px;
+            max-height: 200px;
+            overflow-y: auto;
+        }
+
+        .message-log h3 {
+            margin-bottom: 15px;
+            color: #333;
+        }
+
+        .log-entry {
+            padding: 8px;
+            margin: 5px 0;
+            background: white;
+            border-radius: 5px;
+            font-family: 'Courier New', monospace;
+            font-size: 0.9em;
+            color: #495057;
+        }
+
+        .log-entry.error {
+            background: #fee;
+            color: #c33;
+        }
+
+        .log-entry.success {
+            background: #efe;
+            color: #3c3;
+        }
+
+        @media (max-width: 768px) {
+            .temperature-value {
+                font-size: 4em;
+            }
+
+            .temperature-unit {
+                font-size: 2em;
+            }
+
+            .status-bar {
+                flex-direction: column;
+            }
+
+            .header h1 {
+                font-size: 1.8em;
+            }
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <div class="header">
+            <h1>🌡️ ESP32 温度监控系统</h1>
+            <p>实时温度数据监控</p>
+        </div>
+
+        <div class="status-bar">
+            <div class="status-item">
+                <span class="status-dot disconnected" id="mqttStatus"></span>
+                <span id="mqttStatusText">未连接</span>
+            </div>
+            <div class="status-item">
+                <span>主题: <strong>/public/esp32/temperature</strong></span>
+            </div>
+            <div class="status-item">
+                <span>消息数: <strong id="messageCount">0</strong></span>
+            </div>
+        </div>
+
+        <div class="content">
+            <div class="temperature-display">
+                <div class="temperature-value">
+                    <span id="temperature">--</span>
+                    <span class="temperature-unit">°C</span>
+                </div>
+                <div class="temperature-info">
+                    <div class="info-card">
+                        <h3>设备</h3>
+                        <div class="value" id="device">--</div>
+                    </div>
+                    <div class="info-card">
+                        <h3>最后更新</h3>
+                        <div class="value" id="lastUpdate">--</div>
+                    </div>
+                    <div class="info-card">
+                        <h3>运行时间</h3>
+                        <div class="value" id="uptime">--</div>
+                    </div>
+                </div>
+            </div>
+
+            <div class="chart-container">
+                <div class="chart-title">温度历史趋势</div>
+                <canvas id="temperatureChart"></canvas>
+            </div>
+
+            <div class="message-log">
+                <h3>连接日志</h3>
+                <div id="logContainer"></div>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        // MQTT配置（私人服务器）
+        const MQTT_CONFIG = {
+            host: 'wss://lca0944f.ala.cn-hangzhou.emqxsl.cn:8084/mqtt',  // WebSocket Secure端口
+            topic: '/public/esp32/temperature',
+            options: {
+                clientId: 'esp32-temp-web-' + Math.random().toString(16).substr(2, 8),
+                username: 'ESP32_Binkle',  // MQTT用户名
+                password: '1234',  // MQTT密码
+                clean: true,
+                reconnectPeriod: 5000  // 5秒后自动重连
+            }
+        };
+
+        // 状态变量
+        let mqttClient = null;
+        let messageCount = 0;
+        let temperatureData = [];
+        let chart = null;
+        let startTime = Date.now();
+
+        // 初始化图表
+        function initChart() {
+            const ctx = document.getElementById('temperatureChart').getContext('2d');
+            chart = new Chart(ctx, {
+                type: 'line',
+                data: {
+                    labels: [],
+                    datasets: [{
+                        label: 'Temperature (°C)',
+                        data: [],
+                        borderColor: '#667eea',
+                        backgroundColor: 'rgba(102, 126, 234, 0.1)',
+                        borderWidth: 2,
+                        fill: true,
+                        tension: 0.4
+                    }]
+                },
+                options: {
+                    responsive: true,
+                    maintainAspectRatio: true,
+                    scales: {
+                        y: {
+                            beginAtZero: false,
+                            title: {
+                                display: true,
+                                text: 'Temperature (°C)'
+                            }
+                        },
+                        x: {
+                            title: {
+                                display: true,
+                                text: 'Time'
+                            }
+                        }
+                    },
+                    plugins: {
+                        legend: {
+                            display: true,
+                            position: 'top'
+                        }
+                    }
+                }
+            });
+        }
+
+        // 更新状态显示
+        function updateStatus(status, text) {
+            const statusDot = document.getElementById('mqttStatus');
+            const statusText = document.getElementById('mqttStatusText');
+            
+            statusDot.className = 'status-dot ' + status;
+            statusText.textContent = text;
+        }
+
+        // 添加日志
+        function addLog(message, type = 'info') {
+            const logContainer = document.getElementById('logContainer');
+            const logEntry = document.createElement('div');
+            logEntry.className = 'log-entry ' + type;
+            const timestamp = new Date().toLocaleTimeString();
+            logEntry.textContent = `[${timestamp}] ${message}`;
+            logContainer.insertBefore(logEntry, logContainer.firstChild);
+            
+            // 限制日志数量
+            while (logContainer.children.length > 50) {
+                logContainer.removeChild(logContainer.lastChild);
+            }
+        }
+
+        // 更新温度显示
+        function updateTemperature(data) {
+            document.getElementById('temperature').textContent = data.temperature.toFixed(1);
+            document.getElementById('device').textContent = data.device || 'ESP32';
+            
+            // 更新最后更新时间
+            const now = new Date();
+            document.getElementById('lastUpdate').textContent = now.toLocaleTimeString();
+            
+            // 更新运行时间
+            const uptime = Math.floor((Date.now() - startTime) / 1000);
+            const hours = Math.floor(uptime / 3600);
+            const minutes = Math.floor((uptime % 3600) / 60);
+            const seconds = uptime % 60;
+            document.getElementById('uptime').textContent = 
+                `${hours}:${minutes.toString().padStart(2, '0')}:${seconds.toString().padStart(2, '0')}`;
+            
+            // 更新图表
+            const timeLabel = now.toLocaleTimeString();
+            chart.data.labels.push(timeLabel);
+            chart.data.datasets[0].data.push(data.temperature);
+            
+            // 只保留最近50个数据点
+            if (chart.data.labels.length > 50) {
+                chart.data.labels.shift();
+                chart.data.datasets[0].data.shift();
+            }
+            
+            chart.update('none');
+            
+            // 更新消息计数
+            messageCount++;
+            document.getElementById('messageCount').textContent = messageCount;
+        }
+
+        // 连接MQTT服务器
+        function connectMQTT() {
+            updateStatus('connecting', '正在连接...');
+            addLog('正在连接到私人MQTT服务器...', 'info');
+            
+            try {
+                mqttClient = mqtt.connect(MQTT_CONFIG.host, MQTT_CONFIG.options);
+                
+                mqttClient.on('connect', () => {
+                    updateStatus('connected', '已连接');
+                    addLog('成功连接到私人MQTT服务器!', 'success');
+                    addLog('服务器: lca0944f.ala.cn-hangzhou.emqxsl.cn:8084 (WebSocket Secure)', 'success');
+                    
+                    // 订阅主题
+                    mqttClient.subscribe(MQTT_CONFIG.topic, (err) => {
+                        if (err) {
+                            addLog(`订阅主题失败: ${err.message}`, 'error');
+                        } else {
+                            addLog(`已订阅主题: ${MQTT_CONFIG.topic}`, 'success');
+                        }
+                    });
+                });
+                
+                mqttClient.on('message', (topic, message) => {
+                    try {
+                        const data = JSON.parse(message.toString());
+                        addLog(`收到温度数据: ${data.temperature}°C`, 'success');
+                        updateTemperature(data);
+                    } catch (e) {
+                        addLog(`解析消息错误: ${e.message}`, 'error');
+                        addLog(`原始消息: ${message.toString()}`, 'info');
+                    }
+                });
+                
+                mqttClient.on('error', (error) => {
+                    updateStatus('disconnected', '连接错误');
+                    addLog(`MQTT错误: ${error.message}`, 'error');
+                });
+                
+                mqttClient.on('close', () => {
+                    updateStatus('disconnected', '已断开');
+                    addLog('MQTT连接已关闭，正在尝试重连...', 'error');
+                });
+                
+                mqttClient.on('offline', () => {
+                    updateStatus('disconnected', '离线');
+                    addLog('MQTT客户端离线，正在尝试重连...', 'error');
+                });
+                
+                mqttClient.on('reconnect', () => {
+                    updateStatus('connecting', '正在重连...');
+                    addLog('正在重新连接MQTT服务器...', 'info');
+                });
+                
+            } catch (error) {
+                updateStatus('disconnected', '连接失败');
+                addLog(`连接错误: ${error.message}`, 'error');
+            }
+        }
+
+        // 页面加载完成后初始化
+        window.addEventListener('DOMContentLoaded', () => {
+            initChart();
+            addLog('网页已加载，正在初始化...', 'info');
+            connectMQTT();
+        });
+
+        // 页面关闭时断开连接
+        window.addEventListener('beforeunload', () => {
+            if (mqttClient) {
+                mqttClient.end();
+            }
+        });
+    </script>
+</body>
+</html>
 
