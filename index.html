@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>智能居家安全与环境IoT监测系统</title>
+    <title>智能温室(Smart Greenhouse) IoT环境与安全监测系统</title>
     <script src="https://unpkg.com/mqtt/dist/mqtt.min.js"></script>
     <script src="https://cdn.jsdelivr.net/npm/chart.js@3.9.1/dist/chart.min.js"></script>
     <style>
@@ -285,6 +285,44 @@
             color: #3c3;
         }
 
+        /* RGB灯控制按钮样式 */
+        #rgbLedSetBtn:hover {
+            background: #5568d3 !important;
+            transform: translateY(-1px);
+            box-shadow: 0 2px 4px rgba(0, 0, 0, 0.2);
+        }
+
+        #rgbLedAutoBtn:hover {
+            background: #218838 !important;
+            transform: translateY(-1px);
+            box-shadow: 0 2px 4px rgba(0, 0, 0, 0.2);
+        }
+
+        #rgbLedSetBtn:active, #rgbLedAutoBtn:active {
+            transform: translateY(0);
+        }
+
+        input[type="range"]::-webkit-slider-thumb {
+            -webkit-appearance: none;
+            appearance: none;
+            width: 18px;
+            height: 18px;
+            border-radius: 50%;
+            background: #667eea;
+            cursor: pointer;
+            box-shadow: 0 2px 4px rgba(0, 0, 0, 0.2);
+        }
+
+        input[type="range"]::-moz-range-thumb {
+            width: 18px;
+            height: 18px;
+            border-radius: 50%;
+            background: #667eea;
+            cursor: pointer;
+            border: none;
+            box-shadow: 0 2px 4px rgba(0, 0, 0, 0.2);
+        }
+
         @media (max-width: 768px) {
             .temperature-value {
                 font-size: 4em;
@@ -311,8 +349,8 @@
 <body>
     <div class="container">
         <div class="header">
-            <h1>🏠 智能居家安全与环境IoT监测系统</h1>
-            <p>Smart Home Security & Environment IoT Monitoring System</p>
+            <h1>🌱 智能温室(Smart Greenhouse) IoT环境与安全监测系统</h1>
+            <p>Smart Greenhouse IoT Environment & Security Monitoring System</p>
         </div>
 
         <div class="status-bar">
@@ -339,13 +377,34 @@
 
             <!-- 传感器状态卡片 -->
             <div class="sensors-grid">
-                <!-- 智能灯光控制 -->
-                <div class="sensor-card" id="ledCard">
-                    <div class="sensor-icon">💡</div>
-                    <div class="sensor-title">智能灯光 (LED)</div>
-                    <div class="sensor-value" id="ledStatus">--</div>
-                    <div style="text-align: center;">
-                        <span class="sensor-status off" id="ledStatusBadge">OFF</span>
+                <!-- RGB彩灯控制 -->
+                <div class="sensor-card" id="rgbLedCard">
+                    <div class="sensor-icon">🌈</div>
+                    <div class="sensor-title">RGB彩灯控制</div>
+                    <div class="sensor-value" id="rgbLedCount">--</div>
+                    <div style="text-align: center; margin-top: 10px; color: #6c757d; font-size: 0.9em;">
+                        <span id="rgbLedStatus">--</span>
+                    </div>
+                    <!-- RGB灯控制界面 -->
+                    <div style="margin-top: 15px; padding-top: 15px; border-top: 1px solid #dee2e6;">
+                        <div style="margin-bottom: 10px;">
+                            <label for="rgbLedSlider" style="display: block; margin-bottom: 5px; font-size: 0.9em; color: #495057;">
+                                手动控制灯数量: <span id="rgbLedSliderValue">0</span>/5
+                            </label>
+                            <input type="range" id="rgbLedSlider" min="0" max="5" value="0" step="1" 
+                                   style="width: 100%; height: 8px; border-radius: 5px; background: #e9ecef; outline: none; cursor: pointer;">
+                        </div>
+                        <div style="display: flex; gap: 5px; margin-bottom: 10px;">
+                            <button id="rgbLedSetBtn" style="flex: 1; padding: 8px; background: #667eea; color: white; border: none; border-radius: 5px; cursor: pointer; font-size: 0.9em; font-weight: 600;">
+                                设置
+                            </button>
+                            <button id="rgbLedAutoBtn" style="flex: 1; padding: 8px; background: #28a745; color: white; border: none; border-radius: 5px; cursor: pointer; font-size: 0.9em; font-weight: 600;">
+                                自动模式
+                            </button>
+                        </div>
+                        <div style="text-align: center; font-size: 0.85em; color: #6c757d;">
+                            <span id="rgbControlMode">当前: 自动模式</span>
+                        </div>
                     </div>
                 </div>
 
@@ -366,6 +425,16 @@
                     <div class="sensor-value" id="lightValue">--</div>
                     <div style="text-align: center; margin-top: 10px; color: #6c757d; font-size: 0.9em;">
                         <span id="lightStatus">--</span>
+                    </div>
+                </div>
+
+                <!-- 湿度检测 -->
+                <div class="sensor-card">
+                    <div class="sensor-icon">💧</div>
+                    <div class="sensor-title">环境湿度</div>
+                    <div class="sensor-value" id="humidityValue">--</div>
+                    <div style="text-align: center; margin-top: 10px; color: #6c757d; font-size: 0.9em;">
+                        <span id="humidityStatus">--</span>
                     </div>
                 </div>
 
@@ -402,6 +471,12 @@
                 <canvas id="temperatureChart"></canvas>
             </div>
 
+            <!-- 湿度历史趋势图 -->
+            <div class="chart-container" style="margin-top: 20px;">
+                <div class="chart-title">湿度历史趋势</div>
+                <canvas id="humidityChart"></canvas>
+            </div>
+
             <!-- 连接日志 -->
             <div class="message-log">
                 <h3>连接日志</h3>
@@ -416,6 +491,7 @@
             host: 'wss://lca0944f.ala.cn-hangzhou.emqxsl.cn:8084/mqtt',
             topicSensor: '/public/esp32/smart_home',
             topicAlert: '/public/esp32/smart_home/alert',
+            topicControl: '/public/esp32/smart_home/control',  // 控制主题
             options: {
                 clientId: 'esp32-smart-home-web-' + Math.random().toString(16).substr(2, 8),
                 username: 'ESP32_Binkle',
@@ -428,14 +504,16 @@
         // 状态变量
         let mqttClient = null;
         let messageCount = 0;
-        let chart = null;
+        let temperatureChart = null;
+        let humidityChart = null;
         let startTime = Date.now();
         let alertCount = 0;
+        let isManualMode = false;  // 是否处于手动控制模式
 
-        // 初始化图表
-        function initChart() {
+        // 初始化温度图表
+        function initTemperatureChart() {
             const ctx = document.getElementById('temperatureChart').getContext('2d');
-            chart = new Chart(ctx, {
+            temperatureChart = new Chart(ctx, {
                 type: 'line',
                 data: {
                     labels: [],
@@ -458,6 +536,51 @@
                             title: {
                                 display: true,
                                 text: 'Temperature (°C)'
+                            }
+                        },
+                        x: {
+                            title: {
+                                display: true,
+                                text: 'Time'
+                            }
+                        }
+                    },
+                    plugins: {
+                        legend: {
+                            display: true,
+                            position: 'top'
+                        }
+                    }
+                }
+            });
+        }
+
+        // 初始化湿度图表
+        function initHumidityChart() {
+            const ctx = document.getElementById('humidityChart').getContext('2d');
+            humidityChart = new Chart(ctx, {
+                type: 'line',
+                data: {
+                    labels: [],
+                    datasets: [{
+                        label: 'Humidity (ADC Value)',
+                        data: [],
+                        borderColor: '#17a2b8',
+                        backgroundColor: 'rgba(23, 162, 184, 0.1)',
+                        borderWidth: 2,
+                        fill: true,
+                        tension: 0.4
+                    }]
+                },
+                options: {
+                    responsive: true,
+                    maintainAspectRatio: true,
+                    scales: {
+                        y: {
+                            beginAtZero: false,
+                            title: {
+                                display: true,
+                                text: 'Humidity (ADC Value)'
                             }
                         },
                         x: {
@@ -524,7 +647,7 @@
             
             // 浏览器通知
             if (Notification.permission === 'granted') {
-                new Notification('智能居家系统报警', {
+                new Notification('智能温室系统报警', {
                     body: message,
                     icon: '🔔'
                 });
@@ -536,12 +659,19 @@
             // 更新温度
             document.getElementById('temperature').textContent = data.temperature ? data.temperature.toFixed(1) : '--';
             
-            // 更新LED状态
-            const ledStatus = data.led_status === 'ON';
-            document.getElementById('ledStatus').textContent = ledStatus ? 'ON' : 'OFF';
-            document.getElementById('ledStatusBadge').textContent = ledStatus ? 'ON' : 'OFF';
-            document.getElementById('ledStatusBadge').className = 'sensor-status ' + (ledStatus ? 'on' : 'off');
-            document.getElementById('ledCard').className = 'sensor-card' + (ledStatus ? ' active' : '');
+            // 更新RGB彩灯状态
+            const rgbLedCount = data.rgb_led_count !== undefined ? data.rgb_led_count : 0;
+            document.getElementById('rgbLedCount').textContent = rgbLedCount + '/5';
+            let rgbLedStatusText = '';
+            if (rgbLedCount === 0) {
+                rgbLedStatusText = '全部关闭';
+            } else if (rgbLedCount === 5) {
+                rgbLedStatusText = '全部点亮（很暗）';
+            } else {
+                rgbLedStatusText = `点亮${rgbLedCount}个灯`;
+            }
+            document.getElementById('rgbLedStatus').textContent = rgbLedStatusText;
+            document.getElementById('rgbLedCard').className = 'sensor-card' + (rgbLedCount > 0 ? ' active' : '');
             
             // 更新人员检测
             const hasPerson = data.person_detected === true;
@@ -553,8 +683,36 @@
             // 更新光线值
             const lightValue = data.light || 0;
             document.getElementById('lightValue').textContent = lightValue;
-            const lightStatus = lightValue > 3500 ? '昏暗' : '明亮';
+            let lightStatus = '';
+            if (lightValue >= 4000) {
+                lightStatus = '很暗';
+            } else if (lightValue >= 3200) {
+                lightStatus = '暗';
+            } else if (lightValue >= 2400) {
+                lightStatus = '较暗';
+            } else if (lightValue >= 1600) {
+                lightStatus = '中等';
+            } else if (lightValue >= 800) {
+                lightStatus = '较亮';
+            } else {
+                lightStatus = '很亮';
+            }
             document.getElementById('lightStatus').textContent = lightStatus;
+            
+            // 更新湿度值
+            const humidityValue = data.humidity !== undefined ? data.humidity : 0;
+            document.getElementById('humidityValue').textContent = humidityValue;
+            let humidityStatus = '';
+            if (humidityValue > 3000) {
+                humidityStatus = '高湿度';
+            } else if (humidityValue > 2000) {
+                humidityStatus = '中等湿度';
+            } else if (humidityValue > 1000) {
+                humidityStatus = '低湿度';
+            } else {
+                humidityStatus = '很干燥';
+            }
+            document.getElementById('humidityStatus').textContent = humidityStatus;
             
             // 更新震动检测
             const hasVibration = data.vibration === true;
@@ -570,19 +728,42 @@
             document.getElementById('fanStatusBadge').className = 'sensor-status ' + (fanStatus ? 'on' : 'off');
             document.getElementById('fanCard').className = 'sensor-card' + (fanStatus ? ' active' : '');
             
+            // 更新图表（温度和湿度使用相同的时间标签）
+            const now = new Date();
+            const timeLabel = now.toLocaleTimeString();
+            let chartUpdated = false;
+            
             // 更新温度图表
             if (data.temperature) {
-                const now = new Date();
-                const timeLabel = now.toLocaleTimeString();
-                chart.data.labels.push(timeLabel);
-                chart.data.datasets[0].data.push(data.temperature);
+                temperatureChart.data.labels.push(timeLabel);
+                temperatureChart.data.datasets[0].data.push(data.temperature);
                 
-                if (chart.data.labels.length > 50) {
-                    chart.data.labels.shift();
-                    chart.data.datasets[0].data.shift();
+                if (temperatureChart.data.labels.length > 50) {
+                    temperatureChart.data.labels.shift();
+                    temperatureChart.data.datasets[0].data.shift();
                 }
                 
-                chart.update('none');
+                temperatureChart.update('none');
+                chartUpdated = true;
+            }
+            
+            // 更新湿度图表（使用相同的时间标签）
+            if (data.humidity !== undefined) {
+                // 如果温度图表已更新，使用相同的时间标签；否则创建新的
+                if (!chartUpdated) {
+                    humidityChart.data.labels.push(timeLabel);
+                } else {
+                    // 确保湿度图表的时间标签与温度图表同步
+                    humidityChart.data.labels = [...temperatureChart.data.labels];
+                }
+                humidityChart.data.datasets[0].data.push(data.humidity);
+                
+                if (humidityChart.data.labels.length > 50) {
+                    humidityChart.data.labels.shift();
+                    humidityChart.data.datasets[0].data.shift();
+                }
+                
+                humidityChart.update('none');
             }
             
             // 更新消息计数
@@ -671,11 +852,82 @@
             Notification.requestPermission();
         }
 
+        // 发送RGB灯控制命令
+        function sendRGBControlCommand(ledCount) {
+            if (!mqttClient || !mqttClient.connected) {
+                addLog('MQTT未连接，无法发送控制命令', 'error');
+                return;
+            }
+            
+            const command = {
+                rgb_led_count: ledCount
+            };
+            
+            const message = JSON.stringify(command);
+            mqttClient.publish(MQTT_CONFIG.topicControl, message, { qos: 1 }, (err) => {
+                if (err) {
+                    addLog(`发送控制命令失败: ${err.message}`, 'error');
+                } else {
+                    addLog(`已发送控制命令: RGB灯数量=${ledCount}`, 'success');
+                    isManualMode = true;
+                    document.getElementById('rgbControlMode').textContent = '当前: 手动模式';
+                }
+            });
+        }
+
+        // 发送自动模式命令
+        function sendAutoModeCommand() {
+            if (!mqttClient || !mqttClient.connected) {
+                addLog('MQTT未连接，无法发送控制命令', 'error');
+                return;
+            }
+            
+            const command = {
+                auto_mode: true
+            };
+            
+            const message = JSON.stringify(command);
+            mqttClient.publish(MQTT_CONFIG.topicControl, message, { qos: 1 }, (err) => {
+                if (err) {
+                    addLog(`发送自动模式命令失败: ${err.message}`, 'error');
+                } else {
+                    addLog('已发送自动模式命令', 'success');
+                    isManualMode = false;
+                    document.getElementById('rgbControlMode').textContent = '当前: 自动模式';
+                    document.getElementById('rgbLedSlider').value = 0;
+                    document.getElementById('rgbLedSliderValue').textContent = '0';
+                }
+            });
+        }
+
         // 页面加载完成后初始化
         window.addEventListener('DOMContentLoaded', () => {
-            initChart();
+            initTemperatureChart();
+            initHumidityChart();
             addLog('网页已加载，正在初始化...', 'info');
             connectMQTT();
+            
+            // RGB灯控制事件
+            const rgbLedSlider = document.getElementById('rgbLedSlider');
+            const rgbLedSliderValue = document.getElementById('rgbLedSliderValue');
+            const rgbLedSetBtn = document.getElementById('rgbLedSetBtn');
+            const rgbLedAutoBtn = document.getElementById('rgbLedAutoBtn');
+            
+            // 滑块值变化时更新显示
+            rgbLedSlider.addEventListener('input', (e) => {
+                rgbLedSliderValue.textContent = e.target.value;
+            });
+            
+            // 设置按钮点击事件
+            rgbLedSetBtn.addEventListener('click', () => {
+                const ledCount = parseInt(rgbLedSlider.value);
+                sendRGBControlCommand(ledCount);
+            });
+            
+            // 自动模式按钮点击事件
+            rgbLedAutoBtn.addEventListener('click', () => {
+                sendAutoModeCommand();
+            });
         });
 
         // 页面关闭时断开连接
