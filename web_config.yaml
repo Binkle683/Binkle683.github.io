@@ -1,0 +1,31 @@
+# Web 前端配置文件
+# Web Frontend Configuration File
+
+# MQTT 服务器配置
+mqtt:
+  # MQTT 服务器地址（WebSocket 协议）
+  host: "wss://lca0944f.ala.cn-hangzhou.emqxsl.cn:8084/mqtt"
+  
+  # 认证信息
+  authentication:
+    username: "ESP32_Binkle"
+    password: "1234"
+  
+  # 客户端配置
+  client:
+    # 客户端ID前缀（会自动添加随机后缀）
+    client_id_prefix: "esp32-smart-home-web-"
+    # 清理会话
+    clean: true
+    # 重连间隔（毫秒）
+    reconnect_period: 5000
+  
+  # MQTT 主题配置
+  topics:
+    # 传感器数据主题
+    sensor: "/public/esp32/smart_home"
+    # 报警主题
+    alert: "/public/esp32/smart_home/alert"
+    # 控制主题
+    control: "/public/esp32/smart_home/control"
+
