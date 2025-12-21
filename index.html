@@ -1199,6 +1199,72 @@ hr{
   line-height: 1.2;
 }
 
+/* Tabs right-side page nav buttons */
+.tabs{
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  flex-wrap: wrap;
+}
+
+.page-nav{
+  margin-left: auto;
+  display: inline-flex;
+  gap: 8px;
+  align-items: center;
+}
+
+.page-nav-btn{
+  width: 34px;
+  height: 34px;
+  border-radius: 10px;
+  border: 1px solid rgba(17,24,39,.14);
+  background: rgba(255,255,255,.85);
+  box-shadow: 0 6px 14px rgba(0,0,0,.08);
+  cursor: pointer;
+  font-size: 18px;
+  line-height: 1;
+  padding: 0;
+}
+
+.page-nav-btn:disabled{
+  opacity: .4;
+  cursor: not-allowed;
+  box-shadow: none;
+}
+
+/* 24h charts: button switcher */
+.history-switcher{ margin-top: 20px; }
+
+.history-tabs{
+  display: flex;
+  gap: 10px;
+  align-items: center;
+  justify-content: center;
+  flex-wrap: wrap;
+  margin: 4px 0 14px;
+}
+
+.history-tab{
+  padding: 8px 12px;
+  border-radius: 999px;
+  border: 1px solid rgba(17,24,39,.14);
+  background: rgba(255,255,255,.70);
+  box-shadow: 0 6px 14px rgba(0,0,0,.08);
+  cursor: pointer;
+  font-weight: 650;
+  font-size: 0.95em;
+}
+
+.history-tab.active{
+  background: linear-gradient(135deg, #4f46e5 0%, #7c3aed 100%);
+  color: #fff;
+  border-color: rgba(79,70,229,.35);
+}
+
+.history-panel{ display: none; width: 100%; }
+.history-panel.active{ display: block; }
+
 </style>
 </head>
 <body>
@@ -1214,6 +1280,12 @@ hr{
             <button class="tab-btn" data-page="trends">Trends & Analysis</button>
             <button class="tab-btn" data-page="events">Events & Actions</button>
             <button class="tab-btn" data-page="logs">Connection Logs</button>
+
+            <!-- NEW: small left/right navigation buttons -->
+            <div class="page-nav">
+                <button id="prevPageBtn" class="page-nav-btn" type="button" aria-label="Previous page">‹</button>
+                <button id="nextPageBtn" class="page-nav-btn" type="button" aria-label="Next page">›</button>
+            </div>
         </div>
 
         <div class="status-bar">
@@ -1362,23 +1434,31 @@ hr{
                 </div>
 
             <!-- 24 Hours History Charts (Temperature, Humidity, Light) -->
-            <div style="display: flex; gap: 20px; margin-top: 20px; flex-wrap: wrap;">
-                <!-- Temperature History Chart (24 hours) -->
-                <div class="chart-container" style="flex: 1; min-width: 300px;">
-                    <div class="chart-title">Temperature History Trend (24 hours)</div>
-                    <canvas id="temperatureChart"></canvas>
+            <div class="history-switcher">
+                <div class="history-tabs">
+                    <button type="button" class="history-tab active" data-panel="chart24hTemp">Temperature</button>
+                    <button type="button" class="history-tab" data-panel="chart24hHum">Humidity</button>
+                    <button type="button" class="history-tab" data-panel="chart24hLight">Light</button>
                 </div>
-                
-                <!-- Humidity History Chart (24 hours) -->
-                <div class="chart-container" style="flex: 1; min-width: 300px;">
-                    <div class="chart-title">Humidity History Trend (24 hours)</div>
-                    <canvas id="humidityChart"></canvas>
-                </div>
-                
-                <!-- Light History Chart (24 hours) -->
-                <div class="chart-container" style="flex: 1; min-width: 300px;">
-                    <div class="chart-title">Light Brightness History Trend (24 hours)</div>
-                    <canvas id="lightChart"></canvas>
+
+                <div class="history-panels">
+                    <!-- Temperature -->
+                    <div class="chart-container history-panel active" id="chart24hTemp">
+                        <div class="chart-title">Temperature History Trend (24 hours)</div>
+                        <canvas id="temperatureChart"></canvas>
+                    </div>
+
+                    <!-- Humidity -->
+                    <div class="chart-container history-panel" id="chart24hHum">
+                        <div class="chart-title">Humidity History Trend (24 hours)</div>
+                        <canvas id="humidityChart"></canvas>
+                    </div>
+
+                    <!-- Light -->
+                    <div class="chart-container history-panel" id="chart24hLight">
+                        <div class="chart-title">Light Brightness History Trend (24 hours)</div>
+                        <canvas id="lightChart"></canvas>
+                    </div>
                 </div>
             </div>
 
@@ -1942,6 +2022,37 @@ hr{
                     }
                 });
             });
+        }
+
+        // Initialize arrow page navigation buttons
+        function initArrowPageNav() {
+            const tabButtons = Array.from(document.querySelectorAll('.tab-btn'));
+            const prevBtn = document.getElementById('prevPageBtn');
+            const nextBtn = document.getElementById('nextPageBtn');
+            if (!prevBtn || !nextBtn || tabButtons.length < 2) return;
+
+            const getActiveIndex = () => tabButtons.findIndex(b => b.classList.contains('active'));
+
+            const updateDisabled = () => {
+                const i = getActiveIndex();
+                prevBtn.disabled = i <= 0;
+                nextBtn.disabled = i >= tabButtons.length - 1;
+            };
+
+            prevBtn.addEventListener('click', () => {
+                const i = getActiveIndex();
+                if (i > 0) tabButtons[i - 1].click();
+            });
+
+            nextBtn.addEventListener('click', () => {
+                const i = getActiveIndex();
+                if (i < tabButtons.length - 1) tabButtons[i + 1].click();
+            });
+
+            // 当用户点 tab 时，同步禁用状态
+            tabButtons.forEach(btn => btn.addEventListener('click', updateDisabled));
+
+            updateDisabled();
         }
         
         // RGB LED Mode Tab Navigation
@@ -2755,6 +2866,34 @@ hr{
             });
         }
 
+        // Initialize 24h chart switcher
+        function init24hChartSwitcher(){
+            const tabs = Array.from(document.querySelectorAll('.history-tab'));
+            const panels = Array.from(document.querySelectorAll('.history-panel'));
+            if (!tabs.length || !panels.length) return;
+
+            // 你的 24h 图表实例（Chart.js）一般是这些全局变量名
+            const chartByPanelId = {
+                chart24hTemp: (typeof temperatureChart !== 'undefined') ? temperatureChart : null,
+                chart24hHum: (typeof humidityChart !== 'undefined') ? humidityChart : null,
+                chart24hLight: (typeof lightChart !== 'undefined') ? lightChart : null,
+            };
+
+            const activate = (panelId) => {
+                tabs.forEach(t => t.classList.toggle('active', t.dataset.panel === panelId));
+                panels.forEach(p => p.classList.toggle('active', p.id === panelId));
+
+                // 从隐藏切到显示时，Chart.js 需要 resize 一次，不然尺寸可能不对
+                const c = chartByPanelId[panelId];
+                if (c && typeof c.resize === 'function') setTimeout(() => c.resize(), 0);
+            };
+
+            tabs.forEach(t => t.addEventListener('click', () => activate(t.dataset.panel)));
+
+            // 初始化显示第一个
+            activate((tabs.find(t => t.classList.contains('active')) || tabs[0]).dataset.panel);
+        }
+
         // Update status display
         function updateStatus(status, text) {
             const statusDot = document.getElementById('mqttStatus');
@@ -2789,6 +2928,90 @@ hr{
             }
         }
 
+        // Translate Chinese alert messages to English
+        function translateAlertMessage(message) {
+            if (!message || typeof message !== 'string') {
+                return message;
+            }
+            
+            // Check if message contains Chinese characters
+            const hasChinese = /[\u4e00-\u9fa5]/.test(message);
+            if (!hasChinese) {
+                return message; // Return as-is if no Chinese characters
+            }
+            
+            // Translation mapping for common alert messages
+            const translations = {
+                // Air quality alerts
+                '空气质量': 'Air quality',
+                '空气质量差': 'Poor air quality',
+                '空气质量变差': 'Air quality degraded',
+                '空气质量已恢复': 'Air quality restored',
+                '空气质量恢复正常': 'Air quality returned to normal',
+                '空气质量持续超过10秒': 'Poor air quality persisted for more than 10 seconds',
+                '通风风扇已运行10秒但空气质量未改善': 'Ventilation fan has been running for 10 seconds but air quality has not improved',
+                
+                // Temperature alerts
+                '温度': 'Temperature',
+                '温度超过': 'Temperature exceeded',
+                '温度超过阈值': 'Temperature exceeded threshold',
+                '温度持续超过阈值': 'Temperature exceeded threshold for more than 10 seconds',
+                '温度已恢复正常': 'Temperature returned to normal',
+                '温度已降至阈值以下': 'Temperature has dropped below threshold',
+                '通风风扇已运行10秒但温度未下降': 'Ventilation fan has been running for 10 seconds but temperature has not decreased',
+                
+                // General alerts
+                '报警': 'Alert',
+                '警报': 'Alert',
+                '警告': 'Warning',
+                '错误': 'Error',
+                '异常': 'Abnormal',
+                '检测到': 'Detected',
+                '已解决': 'Resolved',
+                '已恢复': 'Restored',
+                '恢复正常': 'Returned to normal',
+                '超过': 'Exceeded',
+                '低于': 'Below',
+                '阈值': 'Threshold',
+                '持续': 'Persisted',
+                '秒': 'seconds',
+                '分钟': 'minutes',
+                '小时': 'hours',
+            };
+            
+            // Try to translate common patterns
+            let translatedMessage = message;
+            
+            // Translate common alert patterns (full sentences first for better accuracy)
+            if (translatedMessage.includes('空气质量持续超过10秒') || 
+                translatedMessage.includes('空气质量差持续超过10秒') ||
+                translatedMessage.includes('空气质量差') && translatedMessage.includes('10秒')) {
+                translatedMessage = 'Poor air quality persisted for more than 10 seconds, ventilation fan has been running for 10 seconds but air quality has not improved!';
+            } else if (translatedMessage.includes('温度持续超过阈值') || 
+                       translatedMessage.includes('温度超过阈值超过10秒') ||
+                       translatedMessage.includes('温度超过阈值') && translatedMessage.includes('10秒')) {
+                translatedMessage = 'Temperature exceeded threshold for more than 10 seconds, ventilation fan has been running for 10 seconds but temperature has not decreased!';
+            } else if (translatedMessage.includes('空气质量') && (translatedMessage.includes('恢复') || translatedMessage.includes('正常'))) {
+                translatedMessage = 'Air quality has returned to good';
+            } else if (translatedMessage.includes('温度') && (translatedMessage.includes('恢复') || translatedMessage.includes('正常'))) {
+                translatedMessage = 'Temperature has returned to normal';
+            } else if (translatedMessage.includes('温度') && translatedMessage.includes('超过阈值')) {
+                translatedMessage = 'Temperature exceeded threshold';
+            } else if (translatedMessage.includes('温度') && translatedMessage.includes('低于阈值')) {
+                translatedMessage = 'Temperature dropped below threshold';
+            } else if (translatedMessage.includes('空气质量') && translatedMessage.includes('差')) {
+                translatedMessage = 'Poor air quality detected';
+            } else {
+                // Fallback: try to translate word by word (longer phrases first)
+                const sortedTranslations = Object.entries(translations).sort((a, b) => b[0].length - a[0].length);
+                for (const [chinese, english] of sortedTranslations) {
+                    translatedMessage = translatedMessage.replace(new RegExp(chinese, 'g'), english);
+                }
+            }
+            
+            return translatedMessage;
+        }
+
         // Add alert information
         function addAlert(alertType, message) {
             const alertList = document.getElementById('alertList');
@@ -2798,25 +3021,38 @@ hr{
                 alertList.innerHTML = '';
             }
             
+            // Translate message if it contains Chinese
+            const translatedMessage = translateAlertMessage(message);
+            const translatedAlertType = translateAlertMessage(alertType);
+            
             alertCount++;
             
             const alertItem = document.createElement('div');
             alertItem.className = 'alert-item';
             const timestamp = new Date().toLocaleString();
             alertItem.innerHTML = `
-                <div class="alert-time">[${timestamp}] ${alertType}</div>
-                <div class="alert-message">${message}</div>
+                <div class="alert-time">[${timestamp}] ${translatedAlertType}</div>
+                <div class="alert-message">${translatedMessage}</div>
             `;
             alertList.insertBefore(alertItem, alertList.firstChild);
             
-            // 如果是空气质量报警，记录alertItem和时间戳，用于后续标记为已解决
-            if (alertType === 'air_quality' || message.includes('air quality') || message.includes('空气质量')) {
+            // If it's an air quality alert, record alertItem and timestamp for later marking as resolved
+            // Check both original and translated message for compatibility
+            if (alertType === 'air_quality' || 
+                translatedAlertType.toLowerCase().includes('air quality') ||
+                translatedMessage.toLowerCase().includes('air quality') ||
+                message.includes('air quality') || 
+                message.includes('空气质量')) {
                 airQualityAlertInfo.alertItem = alertItem;
                 airQualityAlertInfo.timestamp = Date.now();
             }
             
-            // 如果是温度报警，记录alertItem和时间戳，用于后续标记为已解决
-            if (alertType === 'temperature' || (message.includes('temperature') && message.includes('threshold')) || (message.includes('温度') && message.includes('超过阈值'))) {
+            // If it's a temperature alert, record alertItem and timestamp for later marking as resolved
+            // Check both original and translated message for compatibility
+            if (alertType === 'temperature' || 
+                (translatedMessage.toLowerCase().includes('temperature') && translatedMessage.toLowerCase().includes('threshold')) ||
+                (message.includes('temperature') && message.includes('threshold')) ||
+                (message.includes('温度') && message.includes('阈值'))) {
                 temperatureAlertInfo.alertItem = alertItem;
                 temperatureAlertInfo.timestamp = Date.now();
             }
@@ -2829,7 +3065,7 @@ hr{
             // Browser notification
             if (Notification.permission === 'granted') {
                 new Notification('Smart Greenhouse System Alert', {
-                    body: message,
+                    body: translatedMessage,
                     icon: '🔔'
                 });
             }
@@ -4024,22 +4260,24 @@ hr{
                             }
                             updateSensorData(data);
                         } else if (topic === MQTT_CONFIG.topicAlert) {
-                            // Alert message
-                            addLog(`Received alert message: ${data.message}`, 'error');
-                            addAlert(data.alert_type || 'Alert', data.message || 'Unknown alert');
+                            // Alert message - translate if needed
+                            const alertMessage = data.message || 'Unknown alert';
+                            const translatedAlertMessage = translateAlertMessage(alertMessage);
+                            addLog(`Received alert message: ${translatedAlertMessage}`, 'error');
+                            addAlert(data.alert_type || 'Alert', alertMessage);
                             
-                            // 如果是空气质量报警，也记录到事件日志
+                            // If it's an air quality alert, also log to event log
                             if (data.alert_type === 'air_quality') {
                                 addEventLog('air_quality_alert', {
-                                    message: data.message || 'Poor air quality persisted for more than 10 seconds, ventilation fan has been running for 10 seconds but air quality has not improved!',
+                                    message: translatedAlertMessage || 'Poor air quality persisted for more than 10 seconds, ventilation fan has been running for 10 seconds but air quality has not improved!',
                                     snapshot: {}
                                 });
                             }
                             
-                            // 如果是温度报警，也记录到事件日志
+                            // If it's a temperature alert, also log to event log
                             if (data.alert_type === 'temperature') {
                                 addEventLog('temperature_alert', {
-                                    message: data.message || 'Temperature exceeded threshold for more than 10 seconds, ventilation fan has been running for 10 seconds but temperature has not decreased!',
+                                    message: translatedAlertMessage || 'Temperature exceeded threshold for more than 10 seconds, ventilation fan has been running for 10 seconds but temperature has not decreased!',
                                     snapshot: {}
                                 });
                             }
@@ -4315,12 +4553,14 @@ hr{
         window.addEventListener('DOMContentLoaded', async () => {
             // Initialize tab navigation
             initTabNavigation();
+            initArrowPageNav();
             
             initTemperatureChart();
             initRealtimeTemperatureChart();
             initHumidityChart();
             initRealtimeHumidityChart();
             initLightChart();
+            init24hChartSwitcher();
             addLog('Page loaded, initializing...', 'info');
             
             // Load configuration first, then connect to MQTT
